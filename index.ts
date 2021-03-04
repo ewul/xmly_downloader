@@ -9,6 +9,7 @@ const mLoginUrl = 'https://passport.ximalaya.com/page/m/login'
 const myUrl = 'https://www.ximalaya.com/my/subscribed/'
 const getTracksListUrlTemp = 'https://www.ximalaya.com/revision/album/v1/getTracksList?albumId={albumId}&pageNum={pageNum}&pageSize=1000'
 const getAlbumInfoUrlTemp = 'https://www.ximalaya.com/revision/album?albumId={albumId}'
+const mQueryAlbumTrackRecordsByPage = 'https://m.ximalaya.com/m-revision/common/album/queryAlbumTrackRecordsByPage?albumId={albumId}&page={pageNum}&pageSize=100&asc=true'
 const howManyPages = 10;
 
 declare global {
@@ -62,25 +63,27 @@ let getAlbumInfo = async () => {
 
         return albumId;
     });
+    console.log('found album id: ' + albumId);
+    return albumId;
 
-    let response = await page.goto(getAlbumInfoUrlTemp.replace('{albumId}', albumId));
-    if (response != null) {
-        try {
-            let albumResponse: AlbumResponse = JSON.parse(await response.text())
-            if (albumResponse.ret == 200 && albumResponse.data != undefined) {
-                return albumResponse.data as AlbumInfo;
-            }
-            else {
-                throw new Error('接口返回错误:' + albumResponse);
-            }
-        }
-        catch (error) {
-            throw new Error(error.message);
-        }
-    }
-    else {
-        throw new Error('没收到接口结果：' + getAlbumInfoUrlTemp.replace('{albumId}', albumId));
-    }
+    // let response = await page.goto(getAlbumInfoUrlTemp.replace('{albumId}', albumId));
+    // if (response != null) {
+    //     try {
+    //         let albumResponse: AlbumResponse = JSON.parse(await response.text())
+    //         if (albumResponse.ret == 200 && albumResponse.data != undefined) {
+    //             return albumResponse.data as AlbumInfo;
+    //         }
+    //         else {
+    //             throw new Error('接口返回错误:' + albumResponse);
+    //         }
+    //     }
+    //     catch (error) {
+    //         throw new Error(error.message);
+    //     }
+    // }
+    // else {
+    //     throw new Error('没收到接口结果：' + getAlbumInfoUrlTemp.replace('{albumId}', albumId));
+    // }
 
 
 }
@@ -113,7 +116,7 @@ let getCookie = async () => {
 
 }
 
-let getDownloadList = async (album: AlbumInfo) => {
+let getDownloadList = async (album: string) => {
     let pageNum = 0;
     let downloadList: Track[] = [];
     let trackTotalCount: number = 0;
@@ -122,7 +125,7 @@ let getDownloadList = async (album: AlbumInfo) => {
         pageNum++;
         let page = (await browser).newPage();
         let getTracksListUrl = getTracksListUrlTemp
-            .replace('{albumId}', album.albumId.toString())
+            .replace('{albumId}', album)
             .replace('{pageNum}', pageNum.toString());
         let response = await (await page).goto(getTracksListUrl);
         if (response != null) {
@@ -149,7 +152,7 @@ let getDownloadList = async (album: AlbumInfo) => {
 
     return downloadList.map(
         (track) => {
-            track.url = track.url.replace('/undefined/', '/' + album.mainInfo.crumbs.categoryPinyin + '/' + album.albumId + '/');
+            track.url = track.url.replace('/undefined/', '/' + album.mainInfo.crumbs.categoryPinyin + '/' + album + '/');
             return track;
         }).map(
             (track) => {
@@ -304,6 +307,7 @@ let startToDownload = async (albumTitle: string, downloadList: Track[]) => {
 (async () => {
     let cookie = await getCookie();
     let albumInfo = await getAlbumInfo();
+    console.log('Found album info: ' + albumInfo);
     let downloadList = await getDownloadList(albumInfo);
     // console.log(downloadList.map((item: Track) => { return item.url }));
     let currentFileList = await getCurrentFileList(albumInfo.mainInfo.albumTitle);
